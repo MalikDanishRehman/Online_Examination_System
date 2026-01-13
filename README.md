@@ -1,70 +1,176 @@
-# Getting Started with Create React App
+# Online Exam System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A full-stack Online Exam System developed using **React** for the frontend and **Node.js (Express)** with **Microsoft SQL Server** for the backend.  
+The system supports multiple user roles (Admin, Teacher, Student), exam creation, question management, result storage, and AI-based question generation.
 
-## Available Scripts
+---
 
-In the project directory, you can run:
 
-### `npm start`
+## Features
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- User authentication (Admin, Teacher, Student)
+- Exam creation and publishing
+- Question management (manual and AI-generated)
+- Student exam attempts
+- Exam result storage
+- Admin user management
+- Google Generative AI integration for MCQ generation
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+---
 
-### `npm test`
+## Tech Stack
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Frontend
+- React
+- React Router
+- Axios
 
-### `npm run build`
+### Backend
+- Node.js
+- Express
+- Microsoft SQL Server
+- mssql (msnodesqlv8)
+- dotenv
+- Google Generative AI API
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+---
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Prerequisites
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+Make sure the following are installed:
 
-### `npm run eject`
+- Node.js (LTS recommended)
+- npm
+- Microsoft SQL Server
+- SQL Server Management Studio (SSMS)
+- Git
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+---
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+## Database Setup
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+1. Open **SQL Server Management Studio**.
+2. Create a database named:
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+```sql
+CREATE DATABASE ExamSystemDB;
+```
 
-## Learn More
+3. Run the provided SQL script (`database.sql`) to create:
+   - Users
+   - Exams
+   - Questions
+   - ExamResults  
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+The backend assumes the database and tables already exist.
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+---
 
-### Code Splitting
+## Backend Setup
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+1. Navigate to the backend folder:
 
-### Analyzing the Bundle Size
+```bash
+cd backend
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+2. Install dependencies:
 
-### Making a Progressive Web App
+```bash
+npm install
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+3. Create a `.env` file inside the `backend` folder:
 
-### Advanced Configuration
+```env
+PORT=5000
+NODE_ENV=development
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+DB_DRIVER=ODBC Driver 17 for SQL Server
+DB_NAME=ExamSystemDB
+DB_TRUSTED_CONNECTION=yes
+DB_TRUST_CERT=yes
 
-### Deployment
+DB_SERVER_LOCAL=
+DB_SERVER_FRIEND=
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+GOOGLE_API_KEY=your_google_api_key_here
+```
 
-### `npm run build` fails to minify
+4. Start the backend server:
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+```bash
+npm run start
+```
+
+Backend runs at:
+
+```
+http://localhost:5000
+```
+
+---
+
+## Frontend Setup
+
+1. Navigate to the root (frontend) folder:
+
+```bash
+cd .
+```
+
+2. Install dependencies:
+
+```bash
+npm install
+```
+
+3. Start the frontend application:
+
+```bash
+npm run start
+```
+
+Frontend runs at:
+
+```
+http://localhost:3000
+```
+
+---
+
+## Running the Project
+
+Both servers must be running at the same time:
+
+- Backend → `npm run start` (inside `backend`)
+- Frontend → `npm run start` (inside root)
+
+---
+
+## Environment Variables & Security
+
+- Sensitive data is stored in `.env`
+
+---
+
+## Development Notes
+
+- Backend supports multiple SQL Server machines using environment variables
+- React frontend uses the built-in development server with hot reload
+- Backend can optionally be run with nodemon during development
+
+---
+
+## Common Issues
+
+- Ensure SQL Server service is running
+- Verify correct SQL Server instance name
+- Run `npm install` in both frontend and backend folders
+- Do not run Git commands outside the repository root
+
+---
+
+## License
+
+This project is intended for educational and demonstration purposes.

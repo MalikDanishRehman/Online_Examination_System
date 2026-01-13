@@ -28,10 +28,10 @@ const dbFriend = buildConfig(process.env.DB_SERVER_FRIEND);
 
 async function connectDb() {
     try {
-        console.log("Connecting to localhost DB");
+        console.log("Connecting to A's DB");
         return await sql.connect(dbLocal);
     } catch {
-        console.log("Connecting to friend DB");
+        console.log("Connecting to D's DB");
         return await sql.connect(dbFriend);
     }
 }
