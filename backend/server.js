@@ -1,39 +1,34 @@
 require('dotenv').config();
-
 const express = require('express');
 const sql = require('mssql/msnodesqlv8');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const bcrypt = require('bcrypt');
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
+app.use('/api/auth', require('./routes/auth.routes'));
+app.use('/api/admin', require('./routes/admin.routes'));
+app.use('/api/examiner', require('./routes/examiner.routes'));
+app.use('/api/examinee', require('./routes/examinee.routes'));
+app.use('/api/ai', require('./routes/ai.routes'));
+
 
 /* ================= DATABASE ================= */
 
-function buildConfig(server) {
-    return {
-        connectionString:
-            `Driver={${process.env.DB_DRIVER}};` +
-            `Server=${server};` +
-            `Database=${process.env.DB_NAME};` +
-            `Trusted_Connection=${process.env.DB_TRUSTED_CONNECTION};` +
-            `TrustServerCertificate=${process.env.DB_TRUST_CERT};`
-    };
-}
+const dbConfig = {
+    connectionString:
+        `Driver={${process.env.DB_DRIVER}};` +
+        `Server=${process.env.DB_SERVER};` +
+        `Database=${process.env.DB_NAME};` +
+        `Trusted_Connection=${process.env.DB_TRUSTED_CONNECTION};` +
+        `TrustServerCertificate=${process.env.DB_TRUST_CERT};`
+};
 
-const dbLocal = buildConfig(process.env.DB_SERVER_LOCAL);
-const dbFriend = buildConfig(process.env.DB_SERVER_FRIEND);
-
-async function connectDb() {
-    try {
-        console.log("Connecting to A's DB");
-        return await sql.connect(dbLocal);
-    } catch {
-        console.log("Connecting to D's DB");
-        return await sql.connect(dbFriend);
-    }
+async function getPool() {
+    return await sql.connect(dbConfig);
 }
 
 /* ================= AI ================= */
@@ -42,227 +37,239 @@ const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
 /* ================= AUTH ================= */
 
-app.post('/api/login', async (req, res) => {
-    const { rollNo, password } = req.body;
-    try {
-        const pool = await connectDb();
-        const result = await pool.request()
-            .input('RollNo', sql.VarChar, rollNo)
-            .input('Password', sql.VarChar, password)
-            .query('SELECT * FROM Users WHERE RollNo=@RollNo AND Password=@Password');
+/* LOGIN */
+app.post('/api/auth/login', async (req, res) => {
+    const { email, password } = req.body;
 
-        if (result.recordset.length > 0) {
-            res.json({ success: true, user: result.recordset[0] });
-        } else {
-            res.json({ success: false, message: "Invalid credentials" });
-        }
+    try {
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('email', sql.VarChar, email)
+            .query('SELECT * FROM users WHERE email=@email');
+
+        if (!result.recordset.length)
+            return res.json({ success: false, message: 'User not found' });
+
+        const user = result.recordset[0];
+        const match = await bcrypt.compare(password, user.password_hash);
+
+        if (!match)
+            return res.json({ success: false, message: 'Invalid credentials' });
+
+        res.json({ success: true, user });
     } catch (err) {
         console.error(err);
         res.status(500).send("Login failed");
     }
 });
 
-/* ================= USERS ================= */
+/* REGISTER (STUDENT ONLY) */
+app.post('/api/auth/register', async (req, res) => {
+    const { name, email, password } = req.body;
 
-app.post('/api/addUser', async (req, res) => {
-    const { fullName, rollNo, password, role } = req.body;
     try {
-        const pool = await connectDb();
+        const hash = await bcrypt.hash(password, 10);
+        const pool = await getPool();
+
         await pool.request()
-            .input('FullName', sql.VarChar, fullName)
-            .input('RollNo', sql.VarChar, rollNo)
-            .input('Password', sql.VarChar, password)
-            .input('Role', sql.VarChar, role)
-            .query(
-                'INSERT INTO Users (FullName,RollNo,Password,Role) VALUES (@FullName,@RollNo,@Password,@Role)'
-            );
+            .input('name', sql.VarChar, name)
+            .input('email', sql.VarChar, email)
+            .input('password', sql.VarChar, hash)
+            .query(`
+                INSERT INTO users (name,email,password_hash,role)
+                VALUES (@name,@email,@password,'examinee')
+            `);
 
         res.json({ success: true });
     } catch (err) {
-        if (err.number === 2627) {
-            res.json({ success: false, message: "User already exists" });
-        } else {
+        if (err.number === 2627)
+            res.json({ success: false, message: 'Email already exists' });
+        else {
             console.error(err);
-            res.status(500).send("Add user failed");
+            res.status(500).send("Register failed");
         }
     }
 });
 
-app.get('/api/users', async (req, res) => {
+/* ================= ADMIN ================= */
+
+/* CREATE USER (EXAMINER / EXAMINEE) */
+app.post('/api/admin/create-user', async (req, res) => {
+    const { name, email, password, role } = req.body;
+
+    if (!['examiner', 'examinee'].includes(role))
+        return res.status(400).send("Invalid role");
+
     try {
-        const pool = await connectDb();
-        const result = await pool.request().query('SELECT * FROM Users');
-        res.json(result.recordset);
-    } catch {
-        res.status(500).send("Fetch users failed");
-    }
-});
+        const hash = await bcrypt.hash(password, 10);
+        const pool = await getPool();
 
-app.delete('/api/deleteUser/:id', async (req, res) => {
-    const { id } = req.params;
-    try {
-        const pool = await connectDb();
-        const result = await pool.request()
-            .input('id', sql.Int, id)
-            .query('DELETE FROM Users WHERE UserID=@id');
-
-        res.json({
-            success: result.rowsAffected[0] > 0
-        });
-    } catch {
-        res.status(500).send("Delete failed");
-    }
-});
-
-/* ================= QUESTIONS ================= */
-
-app.get('/api/questions', async (req, res) => {
-    try {
-        const pool = await connectDb();
-        const result = await pool.request().query('SELECT * FROM Questions');
-        res.json(result.recordset);
-    } catch {
-        res.status(500).send("Fetch questions failed");
-    }
-});
-
-/* ================= RESULTS ================= */
-
-app.post('/api/saveResult', async (req, res) => {
-    const { rollNo, score, totalQuestions } = req.body;
-    try {
-        const pool = await connectDb();
         await pool.request()
-            .input('RollNo', sql.VarChar, rollNo)
-            .input('Score', sql.Int, score)
-            .input('TotalQuestions', sql.Int, totalQuestions)
-            .query(
-                'INSERT INTO ExamResults (RollNo,Score,TotalQuestions) VALUES (@RollNo,@Score,@TotalQuestions)'
-            );
+            .input('name', sql.VarChar, name)
+            .input('email', sql.VarChar, email)
+            .input('password', sql.VarChar, hash)
+            .input('role', sql.VarChar, role)
+            .query(`
+                INSERT INTO users (name,email,password_hash,role)
+                VALUES (@name,@email,@password,@role)
+            `);
 
         res.json({ success: true });
     } catch {
-        res.status(500).send("Save result failed");
+        res.status(500).send("Create user failed");
     }
 });
 
-app.get('/api/results', async (req, res) => {
-    try {
-        const pool = await connectDb();
-        const result = await pool.request()
-            .query('SELECT * FROM ExamResults ORDER BY ExamDate DESC');
-        res.json(result.recordset);
-    } catch {
-        res.status(500).send("Fetch results failed");
-    }
-});
+/* ================= EXAMINER ================= */
 
-/* ================= EXAMS ================= */
+/* CREATE EXAM */
+app.post('/api/exam', async (req, res) => {
+    const { title, description, examinerId, isPublic, totalQuestions } = req.body;
 
-app.post('/api/createExam', async (req, res) => {
-    const { title, subject, teacherId, passingMarks } = req.body;
     try {
-        const pool = await connectDb();
+        const pool = await getPool();
         const result = await pool.request()
-            .input('Title', sql.VarChar, title)
-            .input('Subject', sql.VarChar, subject)
-            .input('TeacherID', sql.Int, teacherId)
-            .input('PassingMarks', sql.Int, passingMarks)
+            .input('title', sql.VarChar, title)
+            .input('desc', sql.VarChar, description)
+            .input('creator', sql.Int, examinerId)
+            .input('pub', sql.Bit, isPublic)
+            .input('total', sql.Int, totalQuestions)
             .query(`
-                INSERT INTO Exams (ExamTitle,Subject,TeacherID,PassingMarks,IsPublished)
-                OUTPUT INSERTED.ExamID
-                VALUES (@Title,@Subject,@TeacherID,@PassingMarks,0)
+                INSERT INTO exams (title,description,created_by,is_public,total_questions)
+                OUTPUT INSERTED.exam_id
+                VALUES (@title,@desc,@creator,@pub,@total)
             `);
 
-        res.json({ success: true, examId: result.recordset[0].ExamID });
+        res.json({ success: true, examId: result.recordset[0].exam_id });
     } catch {
         res.status(500).send("Create exam failed");
     }
 });
 
-app.post('/api/addQuestionsToExam', async (req, res) => {
-    const { examId, questions } = req.body;
+/* ADD QUESTIONS */
+app.post('/api/exam/:id/questions', async (req, res) => {
+    const { questions } = req.body;
+
     try {
-        const pool = await connectDb();
+        const pool = await getPool();
         for (const q of questions) {
             await pool.request()
-                .input('ExamID', sql.Int, examId)
-                .input('QuestionText', sql.NVarChar, q.questionText)
-                .input('OptionA', sql.VarChar, q.optionA)
-                .input('OptionB', sql.VarChar, q.optionB)
-                .input('OptionC', sql.VarChar, q.optionC)
-                .input('OptionD', sql.VarChar, q.optionD)
-                .input('CorrectAnswer', sql.VarChar, q.correctAnswer)
+                .input('exam', sql.Int, req.params.id)
+                .input('qt', sql.NVarChar, q.question_text)
+                .input('a', sql.VarChar, q.option_a)
+                .input('b', sql.VarChar, q.option_b)
+                .input('c', sql.VarChar, q.option_c)
+                .input('d', sql.VarChar, q.option_d)
+                .input('ans', sql.Char, q.correct_option)
                 .query(`
-                    INSERT INTO Questions
-                    (ExamID,QuestionText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer)
-                    VALUES
-                    (@ExamID,@QuestionText,@OptionA,@OptionB,@OptionC,@OptionD,@CorrectAnswer)
+                    INSERT INTO questions
+                    (exam_id,question_text,option_a,option_b,option_c,option_d,correct_option)
+                    VALUES (@exam,@qt,@a,@b,@c,@d,@ans)
                 `);
         }
-
-        await pool.request()
-            .query(`UPDATE Exams SET TotalQuestions=${questions.length} WHERE ExamID=${examId}`);
-
         res.json({ success: true });
     } catch {
         res.status(500).send("Add questions failed");
     }
 });
 
-app.post('/api/publishExam', async (req, res) => {
-    const { examId } = req.body;
+/* ================= EXAMINEE ================= */
+
+/* AVAILABLE EXAMS */
+app.get('/api/exams/available/:userId', async (req, res) => {
     try {
-        const pool = await connectDb();
-        await pool.request()
-            .query(`UPDATE Exams SET IsPublished=1 WHERE ExamID=${examId}`);
-        res.json({ success: true });
+        const pool = await getPool();
+        const result = await pool.request()
+            .input('uid', sql.Int, req.params.userId)
+            .query(`
+                SELECT * FROM exams
+                WHERE is_public = 1
+                OR exam_id IN (
+                    SELECT exam_id FROM exam_visibility WHERE examinee_id=@uid
+                )
+            `);
+        res.json(result.recordset);
     } catch {
-        res.status(500).send("Publish failed");
+        res.status(500).send("Fetch exams failed");
     }
 });
 
-app.get('/api/teacherExams/:teacherId', async (req, res) => {
+/* SUBMIT EXAM */
+app.post('/api/exam/:id/submit', async (req, res) => {
+    const { examineeId, score } = req.body;
+
     try {
-        const pool = await connectDb();
-        const result = await pool.request()
-            .input('TeacherID', sql.Int, req.params.teacherId)
-            .query('SELECT * FROM Exams WHERE TeacherID=@TeacherID ORDER BY ExamID DESC');
-        res.json(result.recordset);
+        const pool = await getPool();
+        await pool.request()
+            .input('exam', sql.Int, req.params.id)
+            .input('user', sql.Int, examineeId)
+            .input('score', sql.Int, score)
+            .query(`
+                INSERT INTO attempts (exam_id,examinee_id,score)
+                VALUES (@exam,@user,@score)
+            `);
+
+        res.json({ success: true });
     } catch {
-        res.status(500).send("Fetch teacher exams failed");
+        res.status(500).send("Submit failed");
+    }
+});
+
+/* ================= ATTEMPT DELETION REQUEST ================= */
+
+app.post('/api/attempt/request-delete', async (req, res) => {
+    const { attemptId, userId, reason } = req.body;
+
+    try {
+        const pool = await getPool();
+        await pool.request()
+            .input('att', sql.Int, attemptId)
+            .input('usr', sql.Int, userId)
+            .input('reason', sql.VarChar, reason)
+            .query(`
+                INSERT INTO attempt_deletion_requests
+                (attempt_id,requested_by,request_reason)
+                VALUES (@att,@usr,@reason)
+            `);
+
+        res.json({ success: true });
+    } catch {
+        res.status(500).send("Request failed");
+    }
+});
+
+/* ================= ADMIN / EXAMINER ================= */
+
+app.delete('/api/attempt/:id', async (req, res) => {
+    try {
+        const pool = await getPool();
+        await pool.request()
+            .input('id', sql.Int, req.params.id)
+            .query('DELETE FROM attempts WHERE attempt_id=@id');
+
+        res.json({ success: true });
+    } catch {
+        res.status(500).send("Delete attempt failed");
     }
 });
 
 /* ================= AI ================= */
 
-app.post('/api/generateQuestions', async (req, res) => {
-    const { topic, count, difficulty } = req.body;
+app.post('/api/ai/generate', async (req, res) => {
+    const { topic, count } = req.body;
 
-    const prompt = `
-Create ${count} multiple-choice questions on "${topic}"
-Difficulty: ${difficulty || 'Medium'}
-Return a JSON array only.
-`;
-
-    const cleanAndParse = (text) => {
-        text = text.replace(/```json|```/g, "").trim();
-        const start = text.indexOf('[');
-        const end = text.lastIndexOf(']');
-        if (start !== -1 && end !== -1) {
-            return JSON.parse(text.slice(start, end + 1));
-        }
-        throw new Error("Invalid JSON");
-    };
+    const prompt = `Create ${count} MCQs on ${topic}. Return JSON only.`;
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const result = await model.generateContent(prompt);
-        const questions = cleanAndParse(result.response.text());
-        res.json(questions);
+        const text = result.response.text()
+            .replace(/```json|```/g, '');
+
+        res.json(JSON.parse(text));
     } catch (err) {
-        console.error(err.message);
-        res.status(500).send("AI generation failed");
+        console.error(err);
+        res.status(500).send("AI failed");
     }
 });
 
