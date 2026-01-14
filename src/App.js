@@ -1,32 +1,45 @@
-// src/App.js
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Login from './components/Login';
-import AdminDashboard from './components/AdminDashboard';
-import StudentExam from './components/StudentExam'; 
-import TeacherDashboard from './components/TeacherDashboard';
-import CreateExamManual from './components/CreateExamManual'; // Is file ko import karo
-// import CreateExamAI from './components/CreateExamAI'; // Agar AI file bani hai to uncomment karo
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
-import './App.css'; 
+import Login from './auth/Login';
+import Register from './auth/Register';
+
+import AdminDashboard from './admin/AdminDashboard';
+import ExaminerDashboard from './examiner/ExaminerDashboard';
+import ExamineeDashboard from './examinee/ExamineeDashboard';
+
+const RequireAuth = ({ role, children }) => {
+  const token = localStorage.getItem('token');
+  const user = JSON.parse(localStorage.getItem('user'));
+
+  if (!token || !user) return <Navigate to="/login" />;
+  if (role && user.role !== role) return <Navigate to="/login" />;
+
+  return children;
+};
 
 function App() {
   return (
-    <Router>
+    <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/teacher" element={<TeacherDashboard />} />
-        <Route path="/student" element={<StudentExam />} />
-        
-        {/* New Manual Route */}
-        <Route path="/create-exam-manual" element={<CreateExamManual />} />
-        
-        {/* AI Route (Jab aap AI file bana lo tab uncomment karna) */}
-        {/* <Route path="/create-exam-ai" element={<CreateExamAI />} /> */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
+        <Route path="/admin" element={
+          <RequireAuth role="admin"><AdminDashboard /></RequireAuth>
+        } />
+
+        <Route path="/examiner" element={
+          <RequireAuth role="examiner"><ExaminerDashboard /></RequireAuth>
+        } />
+
+        <Route path="/examinee" element={
+          <RequireAuth role="examinee"><ExamineeDashboard /></RequireAuth>
+        } />
+
+        <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
-    </Router>
+    </BrowserRouter>
   );
 }
 

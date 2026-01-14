@@ -11,6 +11,8 @@
 # production
 /build
 
+src_bak
+
 # misc
 _promptEng
 _xed

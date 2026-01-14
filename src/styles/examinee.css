@@ -1,0 +1,13 @@
+.examinee-container {
+  padding: 30px;
+}
+
+.exam-list li {
+  list-style: none;
+  padding: 12px;
+  background: white;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+}
