@@ -1,41 +1,110 @@
-import React, { useState } from 'react';
-import api from '../api/api';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 
-const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+import api from "../api/api";
+import { dbg } from "../utils/debugger";
+import { saveUser } from "../utils/auth";
+import { showPopup } from "../utils/popup";
+
+import "../styles/auth.css";
+
+
+export default function Login() {
   const navigate = useNavigate();
 
-  const submit = async e => {
-    e.preventDefault();
-    const res = await api.post('/auth/login', { email, password });
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
-    try {
-    const res = await api.post('/auth/login', { email, password });
-    localStorage.setItem('token', res.data.token);
-    localStorage.setItem('user', JSON.stringify(res.data.user));
-    } catch (err) {
-    alert(err.response?.data?.message || 'Login failed');
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    dbg.log("Login attempt started", { email });
+
+    if (!email || !password) {
+      dbg.log("Login validation failed: empty fields");
+
+      showPopup({
+        type: "topright",
+        title: "Validation Error",
+        message: "Email and password are required.",
+      });
+      return;
     }
 
-    if (res.data.user.role === 'admin') navigate('/admin');
-    else if (res.data.user.role === 'examiner') navigate('/examiner');
-    else navigate('/examinee');
+    setLoading(true);
+
+    try {
+      dbg.log("Login API call");
+
+      const res = await api.post("/auth/login", {
+        email,
+        password,
+      });
+
+      dbg.log("Login API success:", res.data);
+
+      const user = {
+        id: res.data.user.id,
+        role: res.data.user.role,
+        token: res.data.token,
+      };
+
+      saveUser(user);
+
+      dbg.log("User saved, redirecting to role dashboard", user.role);
+
+      navigate(`/${user.role}`);
+    } catch (err) {
+      dbg.log("Login failed (caught):", err);
+
+      // Error popup already shown by interceptor,
+      // but login deserves extra context
+      showPopup({
+        type: "topright",
+        title: "Login Failed",
+        message:
+          "Unable to login.\n" +
+          "Possible reasons:\n" +
+          "- Invalid credentials\n" +
+          "- Server unavailable\n" +
+          "- Database disconnected\n\n" +
+          "Check debug logs for details.",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div>
-      <h2>Login</h2>
-      <form onSubmit={submit}>
-        <input placeholder="Email" onChange={e => setEmail(e.target.value)} />
-        <input type="password" placeholder="Password"
-               onChange={e => setPassword(e.target.value)} />
-        <button>Login</button>
+    <div className="auth-page">
+      <form className="auth-card" onSubmit={handleSubmit}>
+        <h2>Login</h2>
+
+        <input
+        //   type="email"
+          type="text"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+
+        <button disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
+        </button>
+
+        <p className="auth-link">
+          Don&apos;t have an account?{" "}
+          <Link to="/register">Register</Link>
+        </p>
       </form>
-      <Link to="/register">Register as Student</Link>
     </div>
   );
-};
-
-export default Login;
+}

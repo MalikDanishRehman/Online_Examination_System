@@ -1,36 +1,95 @@
-import React, { useEffect, useState } from 'react';
-import api from '../api/api';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import api from "../api/api";
+import "../styles/examiner.css";
 
-const ExaminerDashboard = () => {
-  const [results, setResults] = useState([]);
+export default function ExaminerDashboard() {
+  const [exams, setExams] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.get('/examiner/results').then(res => setResults(res.data));
+    fetchExams();
   }, []);
 
-  return (
-    <div>
-      <h2>Examiner Dashboard</h2>
-
-      <button onClick={() => navigate('/examiner/create-manual')}>
-        Create Manual Exam
-      </button>
-      <button onClick={() => navigate('/examiner/create-ai')}>
-        Create AI Exam
-      </button>
-
-      <h3>Results</h3>
-      <ul>
-        {results.map(r => (
-          <li key={r.attempt_id}>
-            {r.student_name} — {r.score}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
+  const fetchExams = async () => {
+  try {
+    const res = await api.get("/examiner/exams");
+    console.log("Examiner exams:", res.data);
+    setExams(res.data);
+  } catch (err) {
+    console.error(err);
+    alert("Failed to load exams");
+  }
 };
 
-export default ExaminerDashboard;
+
+  const deleteExam = async (id) => {
+    if (!window.confirm("Delete this exam permanently?")) return;
+
+    try {
+      await api.delete(`/examiner/exams/${id}`);
+      fetchExams();
+    } catch (err) {
+      alert("Delete failed");
+      console.error(err);
+    }
+  };
+
+  return (
+    <>
+      <Navbar />
+      <div className="page">
+        <h1>Examiner Dashboard</h1>
+
+        <div className="actions">
+          <button onClick={() => navigate("/examiner/create")}>
+            + Manual Exam
+          </button>
+          <button onClick={() => navigate("/examiner/create-ai")}>
+            + AI Exam
+          </button>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Questions</th>
+              <th>Visibility</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {exams.length === 0 ? (
+              <tr>
+                <td colSpan="4" style={{ textAlign: "center" }}>
+                  No exams created yet
+                </td>
+              </tr>
+            ) : (
+              exams.map((e) => (
+                <tr key={e.id}>
+                  <td>{e.title}</td>
+                  <td>{e.questionCount}</td>
+                  <td>{e.isPublic ? "Public" : "Private"}</td>
+                  <td>
+                    <button onClick={() => navigate(`/examiner/edit/${e.id}`)}>
+                      Edit
+                    </button>
+                    <button onClick={() => navigate(`/examiner/results/${e.id}`)}>
+                      Results
+                    </button>
+                    <button onClick={() => deleteExam(e.id)}>
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}

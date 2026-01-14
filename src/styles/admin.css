@@ -1,11 +1,89 @@
-.admin-container {
-  padding: 30px;
+.admin-page {
+  padding: 2rem;
+  background: linear-gradient(120deg, #0f2027, #203a43, #2c5364);
+  min-height: 100vh;
+  color: #fff;
 }
 
-.admin-container h2 {
-  margin-bottom: 20px;
+h1 {
+  margin-bottom: 1.5rem;
 }
 
-.admin-users {
-  margin-top: 20px;
+.card {
+  background: rgba(255,255,255,0.08);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.3);
+}
+
+.admin-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.admin-form input,
+.admin-form select {
+  padding: 0.6rem;
+  border-radius: 6px;
+  border: none;
+}
+
+button {
+  padding: 0.6rem 1rem;
+  border: none;
+  background: #00c6ff;
+  color: #000;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #00aaff;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 0.6rem;
+  text-align: left;
+}
+
+tr:nth-child(even) {
+  background: rgba(255,255,255,0.05);
+}
+
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 1rem;
+  border-radius: 6px;
+}
+
+.toast.success {
+  background: #00c851;
+}
+
+.toast.error {
+  background: #ff4444;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-box {
+  background: #1e293b;
+  padding: 2rem;
+  border-radius: 10px;
+  width: 400px;
 }

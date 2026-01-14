@@ -1,19 +1,32 @@
-.auth-container {
+.auth-page {
   min-height: 100vh;
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea, #764ba2);
 }
 
-.auth-box {
-  width: 350px;
-  padding: 30px;
+.auth-card {
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+  padding: 30px;
+  width: 360px;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
 }
 
-.auth-box h2 {
+.auth-card input {
+  width: 100%;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.auth-card button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+}
+
+.auth-link {
+  margin-top: 12px;
   text-align: center;
-  margin-bottom: 20px;
 }

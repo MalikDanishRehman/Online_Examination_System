@@ -1,14 +1,22 @@
-.form-group {
-  margin-bottom: 15px;
+.admin-form {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
 }
 
-input, textarea, select {
+.admin-form button,
+.admin-form select {
+  grid-column: span 2;
+}
+
+table {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #cbd5e1;
-  border-radius: 6px;
+  border-collapse: collapse;
+  margin-top: 12px;
 }
 
-textarea {
-  resize: vertical;
+table th,
+table td {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
 }

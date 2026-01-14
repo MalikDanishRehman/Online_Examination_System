@@ -1,24 +1,69 @@
-import axios from 'axios';
-import { dbg } from '../utils/debugger';
+import axios from "axios";
+import { showPopup } from "../utils/popup";
+import { getUser } from "../utils/auth";
+import {dbg} from '../utils/debugger';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api'
+  baseURL: "http://localhost:5000/api",
+  timeout: 10000,
 });
 
-api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+/* ===============================
+   REQUEST INTERCEPTOR
+   =============================== */
+api.interceptors.request.use(
+  (config) => {
+    dbg.log("API request:", config.method?.toUpperCase(), config.url);
+
+    const user = getUser();
+    if (user?.token) {
+      config.headers.Authorization = `Bearer ${user.token}`;
+      dbg.log("API request: auth token attached");
+    }
+
+    return config;
+  },
+  (err) => {
+    dbg.log("API request interceptor error:", err);
+    return Promise.reject(err);
   }
-  dbg.log('API', config.method, config.url, config.data || '');
-  return config;
-});
+);
 
+/* ===============================
+   RESPONSE INTERCEPTOR
+   =============================== */
 api.interceptors.response.use(
-  res => res,
-  err => {
-    dbg.log('API ERROR', err.response?.data || err.message);
-    throw err;
+  (res) => {
+    dbg.log("API response success:", res.config.url, res.status);
+    return res;
+  },
+  (err) => {
+    dbg.log("API response error (raw):", err);
+
+    let title = "Server Error";
+    let message = "Unknown error occurred.";
+
+    if (!err.response) {
+      // Backend down / DB not connected
+      title = "Backend Unreachable";
+      message =
+        "Cannot connect to server.\n" +
+        "Possible reasons:\n" +
+        "- Backend not running\n" +
+        "- Database not connected\n" +
+        "- Network issue";
+    } else {
+      title = `Error ${err.response.status}`;
+      message = JSON.stringify(err.response.data, null, 2);
+    }
+
+    showPopup({
+      type: "topright",
+      title,
+      message,
+    });
+
+    return Promise.reject(err);
   }
 );
 

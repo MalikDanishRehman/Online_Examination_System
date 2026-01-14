@@ -1,43 +1,129 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
-import Login from './auth/Login';
-import Register from './auth/Register';
+import { dbg } from "./utils/debugger";
 
-import AdminDashboard from './admin/AdminDashboard';
-import ExaminerDashboard from './examiner/ExaminerDashboard';
-import ExamineeDashboard from './examinee/ExamineeDashboard';
+import Login from "./auth/Login";
+import Register from "./auth/Register";
 
-const RequireAuth = ({ role, children }) => {
-  const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user'));
+import PopupHost from "./components/PopupHost";
 
-  if (!token || !user) return <Navigate to="/login" />;
-  if (role && user.role !== role) return <Navigate to="/login" />;
+import AdminDashboard from "./admin/AdminDashboard";
 
-  return children;
-};
+import ExaminerDashboard from "./examiner/ExaminerDashboard";
+import CreateExam from "./examiner/CreateExam";
+import CreateExamAI from "./examiner/CreateExamAI";
+import ExamResults from "./examiner/ExamResults";
+
+import ExamineeDashboard from "./examinee/ExamineeDashboard";
+import TakeExam from "./examinee/TakeExam";
+import AttemptHistory from "./examinee/AttemptHistory";
+
+import { Protected, PublicOnly } from "./utils/RouteGuards";
 
 function App() {
+  dbg.log("App mounted");
+
   return (
     <BrowserRouter>
+      <PopupHost />
+
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        {/* ================= PUBLIC ================= */}
+        <Route
+          path="/login"
+          element={
+            <PublicOnly>
+              <Login />
+            </PublicOnly>
+          }
+        />
 
-        <Route path="/admin" element={
-          <RequireAuth role="admin"><AdminDashboard /></RequireAuth>
-        } />
+        <Route
+          path="/register"
+          element={
+            <PublicOnly>
+              <Register />
+            </PublicOnly>
+          }
+        />
 
-        <Route path="/examiner" element={
-          <RequireAuth role="examiner"><ExaminerDashboard /></RequireAuth>
-        } />
+        {/* ================= ADMIN ================= */}
+        <Route
+          path="/admin"
+          element={
+            <Protected roles={["admin"]}>
+              <AdminDashboard />
+            </Protected>
+          }
+        />
 
-        <Route path="/examinee" element={
-          <RequireAuth role="examinee"><ExamineeDashboard /></RequireAuth>
-        } />
+        {/* ================= EXAMINER ================= */}
+        <Route
+          path="/examiner"
+          element={
+            <Protected roles={["examiner"]}>
+              <ExaminerDashboard />
+            </Protected>
+          }
+        />
 
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route
+          path="/examiner/create"
+          element={
+            <Protected roles={["examiner"]}>
+              <CreateExam />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="/examiner/create-ai"
+          element={
+            <Protected roles={["examiner"]}>
+              <CreateExamAI />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="/examiner/results"
+          element={
+            <Protected roles={["examiner"]}>
+              <ExamResults />
+            </Protected>
+          }
+        />
+
+        {/* ================= EXAMINEE ================= */}
+        <Route
+          path="/examinee"
+          element={
+            <Protected roles={["examinee"]}>
+              <ExamineeDashboard />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="/examinee/exam/:id"
+          element={
+            <Protected roles={["examinee"]}>
+              <TakeExam />
+            </Protected>
+          }
+        />
+
+        <Route
+          path="/examinee/attempts"
+          element={
+            <Protected roles={["examinee"]}>
+              <AttemptHistory />
+            </Protected>
+          }
+        />
+
+        {/* ================= FALLBACK ================= */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   );
