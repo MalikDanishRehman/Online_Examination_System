@@ -1,16 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const { sql, getPool } = require('../db');
+const { authenticate, allowRoles } = require('../middleware/auth');
+
+router.use(authenticate, allowRoles('examiner'));
 
 /* CREATE EXAM */
 router.post('/exam', async (req, res) => {
-    const { title, description, examinerId, isPublic, totalQuestions } = req.body;
+    const { title, description, isPublic, totalQuestions } = req.body;
 
     const pool = await getPool();
     const result = await pool.request()
         .input('t', sql.VarChar, title)
         .input('d', sql.VarChar, description)
-        .input('c', sql.Int, examinerId)
+        .input('c', sql.Int, req.user.user_id)
         .input('p', sql.Bit, isPublic)
         .input('q', sql.Int, totalQuestions)
         .query(`
@@ -19,14 +22,14 @@ router.post('/exam', async (req, res) => {
             VALUES (@t,@d,@c,@p,@q)
         `);
 
-    res.json({ success: true, examId: result.recordset[0].exam_id });
+    res.json({ examId: result.recordset[0].exam_id });
 });
 
 /* VIEW RESULTS */
-router.get('/results/:examinerId', async (req, res) => {
+router.get('/results', async (req, res) => {
     const pool = await getPool();
     const result = await pool.request()
-        .input('id', sql.Int, req.params.examinerId)
+        .input('id', sql.Int, req.user.user_id)
         .query(`
             SELECT * FROM vw_exam_results
             WHERE exam_title IN (

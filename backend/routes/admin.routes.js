@@ -2,6 +2,9 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const router = express.Router();
 const { sql, getPool } = require('../db');
+const { authenticate, allowRoles } = require('../middleware/auth');
+
+router.use(authenticate, allowRoles('admin'));
 
 /* CREATE USER */
 router.post('/create-user', async (req, res) => {

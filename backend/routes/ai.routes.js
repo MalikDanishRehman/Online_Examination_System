@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { authenticate, allowRoles } = require('../middleware/auth');
+
+router.use(authenticate, allowRoles('examiner'));
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
