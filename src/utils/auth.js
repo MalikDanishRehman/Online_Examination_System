@@ -1,4 +1,4 @@
-import {dbg} from '../utils/debugger';
+import { dbg } from './debugger';
 
 export const getUser = () => {
   try {

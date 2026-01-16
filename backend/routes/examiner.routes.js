@@ -8,139 +8,201 @@ router.use(authenticate, allowRoles('examiner'));
 /* =========================================================
    GET MY EXAMS
    ========================================================= */
-router.get('/exams', async (req, res) => {
+router.get('/exams', async (_, res) => {
   const pool = await getPool();
-
-  const result = await pool.request()
-    .input('uid', sql.Int, req.user.user_id)
-    .query(`
-      SELECT
-        e.exam_id AS id,
+  try {
+    const r = await pool.request().query(`
+      SELECT 
+        e.exam_id,
         e.title,
-        e.total_questions AS questionCount,
-        e.is_public AS isPublic
+        e.description,
+        e.is_public,
+        u.name AS creator_name,
+        (SELECT COUNT(*) FROM attempts a WHERE a.exam_id = e.exam_id) AS total_attempts -- Replaced total_questions with total_attempts
       FROM exams e
-      WHERE e.created_by = @uid
-      ORDER BY e.exam_id DESC
+      JOIN users u ON e.created_by = u.user_id
+      ORDER BY e.exam_id
     `);
-
-  res.json(result.recordset);
+    res.json(r.recordset);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error fetching exams' });
+  }
 });
 
 
 /* =========================================================
-   CREATE EXAM
+   CREATE EXAM (MANUAL OR AI-SHELL)
    ========================================================= */
 router.post('/exam', async (req, res) => {
-  const { title, description = '', isPublic = true, totalQuestions = 0 } = req.body;
+  const { title, description = '', isPublic = true } = req.body;
 
-  if (!title) return res.status(400).json({ error: 'Title required' });
+  if (!title) {
+    return res.status(400).json({ error: 'Title required' });
+  }
 
   const pool = await getPool();
-  const result = await pool.request()
+  const r = await pool.request()
     .input('t', sql.NVarChar, title)
     .input('d', sql.NVarChar, description)
-    .input('c', sql.Int, req.user.user_id)
+    .input('u', sql.Int, req.user.user_id)
     .input('p', sql.Bit, isPublic)
-    .input('q', sql.Int, totalQuestions)
     .query(`
-      INSERT INTO exams (title, description, created_by, is_public, total_questions)
+      INSERT INTO exams
+      (title, description, created_by, is_public, total_questions)
       OUTPUT INSERTED.exam_id
-      VALUES (@t,@d,@c,@p,@q)
+      VALUES (@t,@d,@u,@p,0)
     `);
 
-  res.json({ examId: result.recordset[0].exam_id });
+  res.json({ exam_id: r.recordset[0].exam_id });
 });
 
 /* =========================================================
-   DELETE EXAM (ONLY OWNED)
+   GET QUESTIONS (OWN EXAM)
    ========================================================= */
-router.delete('/exams/:id', async (req, res) => {
+router.post('/exam', async (req, res) => {
+  const { title, description = '', isPublic = true } = req.body;
+
+  if (!title) {
+    return res.status(400).json({ error: 'Title required' });
+  }
+
+  const pool = await getPool();
+  try {
+    const r = await pool.request()
+      .input('t', sql.NVarChar, title)
+      .input('d', sql.NVarChar, description)
+      .input('u', sql.Int, req.user.user_id)
+      .input('p', sql.Bit, isPublic)
+      .query(`
+        INSERT INTO exams
+        (title, description, created_by, is_public)
+        OUTPUT INSERTED.exam_id
+        VALUES (@t, @d, @u, @p)
+      `);
+
+    res.json({ exam_id: r.recordset[0].exam_id });
+  } catch (err) {
+    console.error('Error creating exam:', err);
+    res.status(500).json({ message: 'Error creating exam' });
+  }
+});
+
+
+/* =========================================================
+   ADD / REPLACE QUESTIONS (OWN EXAM)
+   ========================================================= */
+router.post('/exam/:id/questions', async (req, res) => {
+  const questions = req.body;
   const pool = await getPool();
 
-  // ownership check
-  const check = await pool.request()
+  const own = await pool.request()
     .input('id', sql.Int, req.params.id)
-    .input('uid', sql.Int, req.user.user_id)
+    .input('u', sql.Int, req.user.user_id)
     .query(`
-      SELECT exam_id FROM exams
-      WHERE exam_id=@id AND created_by=@uid
+      SELECT 1 FROM exams
+      WHERE exam_id=@id AND created_by=@u
     `);
 
-  if (!check.recordset.length) {
+  if (!own.recordset.length) {
     return res.status(403).json({ error: 'Not your exam' });
   }
 
-  await pool.request()
+  // Lock editing if exam already attempted
+  const attempts = await pool.request()
     .input('id', sql.Int, req.params.id)
-    .query(`DELETE FROM attempts WHERE exam_id=@id`);
+    .query(`SELECT COUNT(*) c FROM attempts WHERE exam_id=@id`);
 
+  if (attempts.recordset[0].c > 0) {
+    return res.status(403).json({ error: 'Exam already attempted' });
+  }
+
+  // Clear old questions for AI regen or manual edits
   await pool.request()
     .input('id', sql.Int, req.params.id)
     .query(`DELETE FROM questions WHERE exam_id=@id`);
 
+  for (const q of questions) {
+    await pool.request()
+      .input('e', sql.Int, req.params.id)
+      .input('qt', sql.NVarChar, q.question_text)
+      .input('a', sql.NVarChar, q.option_a)
+      .input('b', sql.NVarChar, q.option_b)
+      .input('c', sql.NVarChar, q.option_c)
+      .input('d', sql.NVarChar, q.option_d)
+      .input('o', sql.Char, q.correct_option)
+      .query(`
+        INSERT INTO questions
+        (exam_id, question_text, option_a, option_b, option_c, option_d, correct_option)
+        VALUES (@e,@qt,@a,@b,@c,@d,@o)
+      `);
+  }
+
   await pool.request()
     .input('id', sql.Int, req.params.id)
+    .query(`
+      UPDATE exams
+      SET total_questions = (
+        SELECT COUNT(*) FROM questions WHERE exam_id=@id
+      )
+      WHERE exam_id=@id
+    `);
+
+  res.json({ success: true });
+});
+
+/* =========================================================
+   DELETE OWN EXAM
+   ========================================================= */
+router.delete('/exam/:id', async (req, res) => {
+  const pool = await getPool();
+
+  const own = await pool.request()
+    .input('id', sql.Int, req.params.id)
+    .input('u', sql.Int, req.user.user_id)
+    .query(`
+      SELECT 1 FROM exams
+      WHERE exam_id=@id AND created_by=@u
+    `);
+
+  if (!own.recordset.length) {
+    return res.status(403).json({ error: 'Not your exam' });
+  }
+
+  await pool.request().input('id', sql.Int, req.params.id)
+    .query(`DELETE FROM attempts WHERE exam_id=@id`);
+  await pool.request().input('id', sql.Int, req.params.id)
+    .query(`DELETE FROM questions WHERE exam_id=@id`);
+  await pool.request().input('id', sql.Int, req.params.id)
     .query(`DELETE FROM exams WHERE exam_id=@id`);
 
   res.json({ success: true });
 });
 
 /* =========================================================
-   ADD QUESTIONS (OWN EXAM ONLY)
-   ========================================================= */
-router.post('/exam/:examId/questions', async (req, res) => {
-  const { examId } = req.params;
-  const questions = req.body;
-
-  const pool = await getPool();
-
-  const examCheck = await pool.request()
-    .input('examId', sql.Int, examId)
-    .input('uid', sql.Int, req.user.user_id)
-    .query(`
-      SELECT exam_id FROM exams
-      WHERE exam_id=@examId AND created_by=@uid
-    `);
-
-  if (!examCheck.recordset.length) {
-    return res.status(403).json({ error: 'Not your exam' });
-  }
-
-  for (const q of questions) {
-    await pool.request()
-      .input('exam', sql.Int, examId)
-      .input('qt', sql.NVarChar, q.question_text)
-      .input('a', sql.NVarChar, q.option_a)
-      .input('b', sql.NVarChar, q.option_b)
-      .input('c', sql.NVarChar, q.option_c)
-      .input('d', sql.NVarChar, q.option_d)
-      .input('ca', sql.Char, q.correct_option)
-      .query(`
-        INSERT INTO questions
-        (exam_id, question_text, option_a, option_b, option_c, option_d, correct_option)
-        VALUES (@exam,@qt,@a,@b,@c,@d,@ca)
-      `);
-  }
-
-  res.json({ success: true });
-});
-
-/* =========================================================
-   VIEW RESULTS
+   VIEW RESULTS (ONLY OWN EXAMS)
    ========================================================= */
 router.get('/results', async (req, res) => {
   const pool = await getPool();
-  const result = await pool.request()
-    .input('id', sql.Int, req.user.user_id)
+
+  const r = await pool.request()
+    .input('u', sql.Int, req.user.user_id)
     .query(`
-      SELECT * FROM vw_exam_results
-      WHERE exam_title IN (
-        SELECT title FROM exams WHERE created_by=@id
+      SELECT
+        r.attempt_id,
+        r.exam_id,
+        r.title,
+        r.name AS student_name,
+        r.score,
+        r.attempted_at
+      FROM vw_exam_results r
+      WHERE r.exam_id IN (
+        SELECT exam_id FROM exams WHERE created_by=@u
       )
+      ORDER BY r.attempted_at DESC
     `);
 
-  res.json(result.recordset);
+  res.json(r.recordset);
 });
 
 module.exports = router;

@@ -1,5 +1,3 @@
-//console.log('auth.routes.js LOADED');
-
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -7,16 +5,23 @@ const router = express.Router();
 const { sql, getPool } = require('../db');
 
 router.post('/login', async (req, res) => {
-    //dbg.log('LOGIN ROUTE HIT', req.body);
-
     const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password required' });
+    }
 
     try {
         const pool = await getPool();
 
+        // Only fetch user by email
         const result = await pool.request()
-            .input('email', sql.VarChar, email)
-            .query('SELECT * FROM users WHERE email=@email');
+            .input('email', sql.NVarChar, email)
+            .query(`
+                SELECT user_id, name, email, password_hash, role
+                FROM users
+                WHERE email = @email
+            `);
 
         if (!result.recordset.length) {
             return res.status(401).json({ message: 'Invalid credentials' });
@@ -24,14 +29,17 @@ router.post('/login', async (req, res) => {
 
         const user = result.recordset[0];
 
-        // PATCH FIX (plaintext + bcrypt support)
+        // Password check (bcrypt OR plaintext seed)
         let passwordMatch = false;
 
-        if (user.password_hash.startsWith('$2')) {
-            // bcrypt hash
+        if (
+            user.password_hash &&
+            typeof user.password_hash === 'string' &&
+            user.password_hash.startsWith('$2')
+        ) {
             passwordMatch = await bcrypt.compare(password, user.password_hash);
         } else {
-            // plaintext password (seed data)
+            // plaintext fallback for seeded users
             passwordMatch = password === user.password_hash;
         }
 
@@ -39,7 +47,7 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ message: 'Invalid credentials' });
         }
 
-        // JWT generation
+        // JWT
         const token = jwt.sign(
             {
                 user_id: user.user_id,
@@ -66,14 +74,13 @@ router.post('/login', async (req, res) => {
 });
 
 router.post('/register', async (req, res) => {
-    //console.log('REGISTER ROUTE HIT', req.body);
-
     const { name, email, password } = req.body;
 
     try {
-        const hash = await bcrypt.hash(password, 10);
+        const hash = await bcrypt.hash(password, 10); // Hash the password
         const pool = await getPool();
 
+        // Insert user as examinee (default role for registration)
         await pool.request()
             .input('name', sql.VarChar, name)
             .input('email', sql.VarChar, email)

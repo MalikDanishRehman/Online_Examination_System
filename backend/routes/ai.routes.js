@@ -3,7 +3,7 @@ const router = express.Router();
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { authenticate, allowRoles } = require('../middleware/auth');
 
-router.use(authenticate, allowRoles('examiner', 'admin'));
+router.use(authenticate, allowRoles('examiner', 'admin')); // Allow AI generation for examiners and admins only
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 

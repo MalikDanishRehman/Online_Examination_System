@@ -4,14 +4,14 @@ const router = express.Router();
 const { sql, getPool } = require('../db');
 const { authenticate, allowRoles } = require('../middleware/auth');
 
-/* =========================================================
-   ADMIN AUTH GUARD
-   ========================================================= */
+// =========================================================
+// ADMIN AUTH GUARD
+// =========================================================
 router.use(authenticate, allowRoles('admin'));
 
-/* =========================================================
-   USERS
-   ========================================================= */
+// =========================================================
+// USERS
+// =========================================================
 router.get('/users', async (_, res) => {
   const pool = await getPool();
   const r = await pool.request().query(`
@@ -24,7 +24,7 @@ router.get('/users', async (_, res) => {
 
 router.post('/create-user', async (req, res) => {
   const { name, email, password, role } = req.body;
-  if (!name || !email || !password) {
+  if (!name || !email || !password || !role) {
     return res.status(400).json({ error: 'All fields required' });
   }
 
@@ -44,271 +44,35 @@ router.post('/create-user', async (req, res) => {
   res.json({ success: true });
 });
 
-/* =========================================================
-   CREATE EXAM (EMPTY)
-   ========================================================= */
-router.post('/exam', async (req, res) => {
-  const { title, description = '', is_public = true } = req.body;
-  if (!title) return res.status(400).json({ error: 'Title required' });
+router.put('/update-user/:id', async (req, res) => {
+  const { name, email, password, role } = req.body;
+  const userId = req.params.id;
+
+  const updates = [];
+  if (name) updates.push('name = @name');
+  if (email) updates.push('email = @email');
+  if (password) updates.push('password_hash = @password_hash');
+  if (role) updates.push('role = @role');
+
+  if (updates.length === 0) return res.status(400).json({ error: 'No valid fields to update' });
 
   const pool = await getPool();
   await pool.request()
-    .input('t', sql.NVarChar, title)
-    .input('d', sql.NVarChar, description)
-    .input('u', sql.Int, req.user.user_id)
-    .input('p', sql.Bit, is_public)
+    .input('name', sql.NVarChar, name)
+    .input('email', sql.NVarChar, email)
+    .input('password_hash', sql.NVarChar, await bcrypt.hash(password, 10))
+    .input('role', sql.VarChar, role)
+    .input('user_id', sql.Int, userId)
     .query(`
-      INSERT INTO exams (title, description, created_by, is_public, total_questions)
-      VALUES (@t,@d,@u,@p,0)
+      UPDATE users
+      SET ${updates.join(', ')}
+      WHERE user_id = @user_id
     `);
 
   res.json({ success: true });
 });
 
-/* =========================================================
-   AI – CREATE EXAM + RETURN QUESTIONS
-   ========================================================= */
-router.post('/exam/ai', async (req, res) => {
-  try {
-    const { topic, count = 5 } = req.body;
-    if (!topic) {
-      return res.status(400).json({ error: 'Topic required' });
-    }
-
-    if (!process.env.GOOGLE_API_KEY) {
-      return res.status(500).json({
-        error: 'GOOGLE_API_KEY missing on server'
-      });
-    }
-
-    const { GoogleGenerativeAI } = require('@google/generative-ai');
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-
-    const prompt = `
-Return ONLY a JSON array.
-No markdown.
-No explanation.
-
-Each item format:
-{
-  "question": "string",
-  "A": "string",
-  "B": "string",
-  "C": "string",
-  "D": "string",
-  "correct": "A"
-}
-
-Topic: ${topic}
-Number of questions: ${count}
-`;
-
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
-    });
-
-    const result = await model.generateContent(prompt);
-    let text = result.response.text();
-
-    // Clean Gemini garbage
-    text = text
-      .replace(/```json/gi, '')
-      .replace(/```/g, '')
-      .trim();
-
-    let questions;
-    try {
-      questions = JSON.parse(text);
-    } catch (parseErr) {
-      console.error('JSON PARSE FAILED');
-      console.error(text);
-
-      return res.status(500).json({
-        error: 'Gemini returned invalid JSON',
-        raw: text
-      });
-    }
-
-    const pool = await getPool();
-    const r = await pool.request()
-      .input('t', sql.NVarChar, `${topic} Exam`)
-      .input('d', sql.NVarChar, `AI generated exam on ${topic}`)
-      .input('u', sql.Int, req.user.user_id)
-      .query(`
-        INSERT INTO exams
-        (title, description, created_by, is_public, total_questions)
-        OUTPUT INSERTED.exam_id
-        VALUES (@t,@d,@u,1,0)
-      `);
-
-    res.json({
-      success: true,
-      exam_id: r.recordset[0].exam_id,
-      suggested_questions: questions
-    });
-
-  } catch (err) {
-    console.error('AI GENERATION ERROR');
-    console.error(err);
-
-    res.status(500).json({
-      error: 'AI generation failed',
-      details: err.message
-    });
-  }
-});
-
-
-
-/* =========================================================
-   EXAMS (WITH ATTEMPTS COUNT)
-   ========================================================= */
-router.get('/exams', async (_, res) => {
-  const pool = await getPool();
-  const r = await pool.request().query(`
-    SELECT 
-      e.exam_id,
-      e.title,
-      e.description,
-      e.is_public,
-      u.name AS creator_name,
-      (SELECT COUNT(*) FROM attempts a WHERE a.exam_id=e.exam_id) AS attempts
-    FROM exams e
-    JOIN users u ON e.created_by = u.user_id
-    ORDER BY e.exam_id
-  `);
-  res.json(r.recordset);
-});
-
-/* =========================================================
-   QUESTIONS (LOCKED AFTER ATTEMPT)
-   ========================================================= */
-router.get('/exam/:id/questions', async (req, res) => {
-  const pool = await getPool();
-  const r = await pool.request()
-    .input('id', sql.Int, req.params.id)
-    .query(`
-      SELECT question_id, question_text,
-             option_a, option_b, option_c, option_d, correct_option
-      FROM questions
-      WHERE exam_id=@id
-      ORDER BY question_id
-    `);
-  res.json(r.recordset);
-});
-
-router.post('/exam/:id/questions', async (req, res) => {
-  const pool = await getPool();
-
-  const attempts = await pool.request()
-    .input('id', sql.Int, req.params.id)
-    .query(`SELECT COUNT(*) c FROM attempts WHERE exam_id=@id`);
-
-  if (attempts.recordset[0].c > 0) {
-    return res.status(403).json({ error: 'Exam already attempted' });
-  }
-
-  const q = req.body;
-  await pool.request()
-    .input('e', sql.Int, req.params.id)
-    .input('q', sql.NVarChar, q.question_text)
-    .input('a', sql.NVarChar, q.option_a)
-    .input('b', sql.NVarChar, q.option_b)
-    .input('c', sql.NVarChar, q.option_c)
-    .input('d', sql.NVarChar, q.option_d)
-    .input('o', sql.Char, q.correct_option)
-    .query(`
-      INSERT INTO questions
-      (exam_id, question_text, option_a, option_b, option_c, option_d, correct_option)
-      VALUES (@e,@q,@a,@b,@c,@d,@o)
-    `);
-
-  await pool.request()
-    .input('id', sql.Int, req.params.id)
-    .query(`
-      UPDATE exams
-      SET total_questions = (SELECT COUNT(*) FROM questions WHERE exam_id=@id)
-      WHERE exam_id=@id
-    `);
-
-  res.json({ success: true });
-});
-
-router.delete('/exam/:examId/questions/:qid', async (req, res) => {
-  const pool = await getPool();
-
-  const attempts = await pool.request()
-    .input('id', sql.Int, req.params.examId)
-    .query(`SELECT COUNT(*) c FROM attempts WHERE exam_id=@id`);
-
-  if (attempts.recordset[0].c > 0) {
-    return res.status(403).json({ error: 'Exam already attempted' });
-  }
-
-  await pool.request()
-    .input('q', sql.Int, req.params.qid)
-    .query(`DELETE FROM questions WHERE question_id=@q`);
-
-  res.json({ success: true });
-});
-
-/* =========================================================
-   ATTEMPTS (ADMIN VIEW)
-   ========================================================= */
-router.get('/exam/:id/attempts', async (req, res) => {
-  const pool = await getPool();
-  const r = await pool.request()
-    .input('id', sql.Int, req.params.id)
-    .query(`
-      SELECT 
-        a.attempt_id,
-        u.name AS student_name,
-        u.email AS student_email,
-        a.score,
-        e.total_questions
-      FROM attempts a
-      JOIN users u ON a.examinee_id = u.user_id
-      JOIN exams e ON a.exam_id = e.exam_id
-      WHERE a.exam_id=@id
-      ORDER BY a.attempt_id
-    `);
-
-  res.json(r.recordset);
-});
-
-/* =========================================================
-   DELETE EXAM (ALWAYS ALLOWED)
-   ========================================================= */
-router.delete('/exam/:id', async (req, res) => {
-  const pool = await getPool();
-
-  // Ensure the exam exists before proceeding
-  const exists = await pool.request()
-    .input('id', sql.Int, req.params.id)
-    .query(`SELECT 1 FROM exams WHERE exam_id=@id`);
-
-  if (!exists.recordset.length) {
-    return res.status(404).json({ error: 'Exam not found' });
-  }
-
-  // Delete attempts, questions, and then the exam
-  await pool.request().input('id', sql.Int, req.params.id)
-    .query(`DELETE FROM attempts WHERE exam_id=@id`);
-
-  await pool.request().input('id', sql.Int, req.params.id)
-    .query(`DELETE FROM questions WHERE exam_id=@id`);
-
-  await pool.request().input('id', sql.Int, req.params.id)
-    .query(`DELETE FROM exams WHERE exam_id=@id`);
-
-  res.json({ success: true });
-});
-
-
-/* =========================================================
-   DELETE USER
-   ========================================================= */
-router.delete('/user/:id', async (req, res) => {
+router.delete('/delete-user/:id', async (req, res) => {
   if (+req.params.id === 1) {
     return res.status(403).json({ error: 'Admin cannot be deleted' });
   }
@@ -321,6 +85,141 @@ router.delete('/user/:id', async (req, res) => {
   res.json({ success: true });
 });
 
+// =========================================================
+// EXAMS
+// =========================================================
+router.get('/exams', async (_, res) => {
+  const pool = await getPool();
+  const r = await pool.request().query(`
+    SELECT 
+      e.exam_id,
+      e.title,
+      e.description,
+      e.is_public,
+      u.name AS creator_name,
+      (SELECT COUNT(*) FROM attempts a WHERE a.exam_id = e.exam_id) AS attempts
+    FROM exams e
+    JOIN users u ON e.created_by = u.user_id
+    ORDER BY e.exam_id
+  `);
+  res.json(r.recordset);
+});
+
+router.post('/create-exam', async (req, res) => {
+  const { title, description = '', is_public = true } = req.body;
+  if (!title) return res.status(400).json({ error: 'Title required' });
+
+  const pool = await getPool();
+  const r = await pool.request()
+    .input('t', sql.NVarChar, title)
+    .input('d', sql.NVarChar, description)
+    .input('u', sql.Int, req.user.user_id)
+    .input('p', sql.Bit, is_public)
+    .query(`
+      INSERT INTO exams (title, description, created_by, is_public)
+      OUTPUT INSERTED.exam_id
+      VALUES (@t, @d, @u, @p)
+    `);
+
+  res.json({ success: true, exam_id: r.recordset[0].exam_id });
+});
+
+router.put('/update-exam/:id', async (req, res) => {
+  const { title, description, is_public } = req.body;
+  const examId = req.params.id;
+
+  const pool = await getPool();
+  await pool.request()
+    .input('t', sql.NVarChar, title)
+    .input('d', sql.NVarChar, description)
+    .input('p', sql.Bit, is_public)
+    .input('id', sql.Int, examId)
+    .query(`
+      UPDATE exams
+      SET title = @t, description = @d, is_public = @p
+      WHERE exam_id = @id
+    `);
+
+  res.json({ success: true });
+});
+
+router.delete('/delete-exam/:id', async (req, res) => {
+  const pool = await getPool();
+
+  // Delete attempts and questions before deleting exam
+  await pool.request().input('id', sql.Int, req.params.id)
+    .query(`DELETE FROM attempts WHERE exam_id = @id`);
+  await pool.request().input('id', sql.Int, req.params.id)
+    .query(`DELETE FROM questions WHERE exam_id = @id`);
+
+  await pool.request().input('id', sql.Int, req.params.id)
+    .query(`DELETE FROM exams WHERE exam_id = @id`);
+
+  res.json({ success: true });
+});
+
+// =========================================================
+// ATTEMPT DELETION REQUESTS
+// =========================================================
+router.get('/attempt-deletion-requests', async (_, res) => {
+  const pool = await getPool();
+
+  const r = await pool.request().query(`
+    SELECT
+      adr.request_id,
+      adr.attempt_id,
+      adr.request_reason,
+      adr.status,
+      adr.requested_at,
+      u.name AS student_name,
+      u.email AS student_email
+    FROM attempt_deletion_requests adr
+    JOIN users u ON adr.requested_by = u.user_id
+    WHERE adr.status = 'pending'
+    ORDER BY adr.requested_at DESC
+  `);
+
+  res.json(r.recordset);
+});
+
+router.post('/attempt-deletion/:id', async (req, res) => {
+  const { action } = req.body; // approve | reject
+  const id = +req.params.id;
+
+  if (!['approved', 'rejected'].includes(action)) {
+    return res.status(400).json({ error: 'Invalid action' });
+  }
+
+  const pool = await getPool();
+
+  if (action === 'approved') {
+    await pool.request()
+      .input('id', sql.Int, id)
+      .query(`
+        DELETE FROM attempts
+        WHERE attempt_id = (
+          SELECT attempt_id FROM attempt_deletion_requests
+          WHERE request_id = @id
+        )
+      `);
+  }
+
+  await pool.request()
+    .input('id', sql.Int, id)
+    .input('u', sql.Int, req.user.user_id)
+    .input('s', sql.VarChar, action)
+    .query(`
+      UPDATE attempt_deletion_requests
+      SET status = @s, reviewed_by = @u, reviewed_at = GETDATE()
+      WHERE request_id = @id
+    `);
+
+  res.json({ success: true });
+});
+
+// =========================================================
+// SEARCH USERS AND EXAMS
+// =========================================================
 router.get('/users/search', async (req, res) => {
   const q = req.query.q || '';
   const pool = await getPool();
@@ -350,7 +249,7 @@ router.get('/exams/search', async (req, res) => {
         e.description,
         e.is_public,
         u.name AS creator_name,
-        (SELECT COUNT(*) FROM attempts a WHERE a.exam_id=e.exam_id) AS attempts
+        (SELECT COUNT(*) FROM attempts a WHERE a.exam_id = e.exam_id) AS attempts
       FROM exams e
       JOIN users u ON e.created_by = u.user_id
       WHERE e.title LIKE @q
@@ -359,6 +258,5 @@ router.get('/exams/search', async (req, res) => {
 
   res.json(r.recordset);
 });
-
 
 module.exports = router;

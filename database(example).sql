@@ -36,7 +36,6 @@ CREATE TABLE exams (
     description NVARCHAR(MAX),
     created_by INT NOT NULL,
     is_public BIT DEFAULT 1,
-    total_questions INT NOT NULL,
     created_at DATETIME DEFAULT GETDATE(),
     CONSTRAINT FK_exam_creator FOREIGN KEY (created_by)
         REFERENCES users(user_id)
@@ -44,7 +43,7 @@ CREATE TABLE exams (
 GO
 
 /* =========================================================
-   QUESTIONS
+   QUESTIONS (ANSWER KEY LIVES HERE)
    ========================================================= */
 CREATE TABLE questions (
     question_id INT IDENTITY PRIMARY KEY,
@@ -61,7 +60,7 @@ CREATE TABLE questions (
 GO
 
 /* =========================================================
-   EXAM VISIBILITY
+   EXAM VISIBILITY (PRIVATE EXAMS)
    ========================================================= */
 CREATE TABLE exam_visibility (
     visibility_id INT IDENTITY PRIMARY KEY,
@@ -75,13 +74,12 @@ CREATE TABLE exam_visibility (
 GO
 
 /* =========================================================
-   ATTEMPTS
+   ATTEMPTS (NO SCORE STORED)
    ========================================================= */
 CREATE TABLE attempts (
     attempt_id INT IDENTITY PRIMARY KEY,
     exam_id INT NOT NULL,
     examinee_id INT NOT NULL,
-    score INT,
     attempted_at DATETIME DEFAULT GETDATE(),
     CONSTRAINT FK_attempt_exam FOREIGN KEY (exam_id)
         REFERENCES exams(exam_id) ON DELETE CASCADE,
@@ -91,14 +89,13 @@ CREATE TABLE attempts (
 GO
 
 /* =========================================================
-   ATTEMPT ANSWERS
+   ATTEMPT ANSWERS (STUDENT CHOICE ONLY)
    ========================================================= */
 CREATE TABLE attempt_answers (
     answer_id INT IDENTITY PRIMARY KEY,
     attempt_id INT NOT NULL,
     question_id INT NOT NULL,
     selected_option CHAR(1),
-    is_correct BIT,
     CONSTRAINT FK_answer_attempt FOREIGN KEY (attempt_id)
         REFERENCES attempts(attempt_id) ON DELETE CASCADE,
     CONSTRAINT FK_answer_question FOREIGN KEY (question_id)
@@ -132,15 +129,15 @@ GO
    INDEXES
    ========================================================= */
 CREATE INDEX IDX_users_role ON users(role);
-CREATE INDEX IDX_exams_creator ON exams(created_by);
 CREATE INDEX IDX_attempts_exam ON attempts(exam_id);
 CREATE INDEX IDX_attempts_user ON attempts(examinee_id);
+CREATE INDEX IDX_answers_attempt ON attempt_answers(attempt_id);
 GO
 
 /* =========================================================
    SEED USERS
    ========================================================= */
-INSERT INTO users (name, email, password_hash, role)
+INSERT INTO users (name,email,password_hash,role)
 VALUES
 ('admin','admin','@dm3z','admin'),
 ('examiner','ex','ex','examiner'),
@@ -151,11 +148,11 @@ GO
 /* =========================================================
    SEED EXAMS
    ========================================================= */
-INSERT INTO exams (title, description, created_by, is_public, total_questions)
+INSERT INTO exams (title,description,created_by,is_public)
 VALUES
-('SQL Basics','Intro to SQL',2,1,3),
-('Web Development','HTML CSS JS',2,0,3),
-('Data Structures','DS Basics',2,1,3);
+('SQL Basics','Intro to SQL',2,1),
+('Web Development','HTML CSS JS',2,0),
+('Data Structures','DS Basics',2,1);
 GO
 
 /* =========================================================
@@ -176,78 +173,47 @@ INSERT INTO questions VALUES
 GO
 
 /* =========================================================
-   EXAM VISIBILITY
+   SEED ATTEMPTS + ANSWERS
    ========================================================= */
-INSERT INTO exam_visibility (exam_id, examinee_id)
-VALUES (2,4);
-GO
+DECLARE @a1 INT, @a2 INT;
 
-/* =========================================================
-   ATTEMPTS + ANSWERS (IDENTITY SAFE)
-   ========================================================= */
-DECLARE @a1 INT, @a2 INT, @a3 INT;
-
-INSERT INTO attempts (exam_id, examinee_id, score)
-VALUES (1,4,3);
+INSERT INTO attempts (exam_id,examinee_id) VALUES (1,4);
 SET @a1 = SCOPE_IDENTITY();
 
-INSERT INTO attempts (exam_id, examinee_id, score)
-VALUES (1,3,2);
+INSERT INTO attempts (exam_id,examinee_id) VALUES (1,3);
 SET @a2 = SCOPE_IDENTITY();
 
-INSERT INTO attempts (exam_id, examinee_id, score)
-VALUES (2,4,3);
-SET @a3 = SCOPE_IDENTITY();
-
 INSERT INTO attempt_answers VALUES
-(@a1,1,'A',1),(@a1,2,'C',1),(@a1,3,'B',1),
-(@a2,1,'A',1),(@a2,2,'B',0),(@a2,3,'B',1),
-(@a3,4,'A',1),(@a3,5,'B',1),(@a3,6,'C',1);
+(@a1,1,'A'),(@a1,2,'C'),(@a1,3,'B'),
+(@a2,1,'A'),(@a2,2,'B'),(@a2,3,'B');
 GO
 
 /* =========================================================
-   ATTEMPT DELETION REQUESTS
+   VIEWS – MAGIC HAPPENS HERE
    ========================================================= */
-INSERT INTO attempt_deletion_requests
-(attempt_id, requested_by, request_reason, status, reviewed_by, reviewed_at)
-VALUES
-(@a2,3,'Accidental submission','pending',NULL,NULL),
-(@a3,4,'Wrong device','approved',1,GETDATE());
+
+-- Per-question correctness (REAL-TIME)
+CREATE VIEW vw_attempt_answers_detailed AS
+SELECT
+    aa.attempt_id,
+    aa.question_id,
+    aa.selected_option,
+    q.correct_option,
+    CASE WHEN aa.selected_option = q.correct_option THEN 1 ELSE 0 END AS is_correct
+FROM attempt_answers aa
+JOIN questions q ON aa.question_id = q.question_id;
 GO
 
-/* =========================================================
-   VIEWS
-   ========================================================= */
-CREATE VIEW vw_exam_results AS
-SELECT a.attempt_id, e.title, u.name, a.score, a.attempted_at
+-- Final score per attempt (AUTO-UPDATED)
+CREATE VIEW vw_attempt_scores AS
+SELECT
+    a.attempt_id,
+    a.exam_id,
+    a.examinee_id,
+    COUNT(v.is_correct) AS total_questions,
+    SUM(v.is_correct) AS score,
+    a.attempted_at
 FROM attempts a
-JOIN exams e ON a.exam_id = e.exam_id
-JOIN users u ON a.examinee_id = u.user_id;
-GO
-
-CREATE VIEW vw_student_attempts AS
-SELECT a.attempt_id, e.title, a.score, a.attempted_at
-FROM attempts a
-JOIN exams e ON a.exam_id = e.exam_id;
-GO
-
-/* =========================================================
-   STORED PROCEDURES
-   ========================================================= */
-CREATE PROCEDURE sp_delete_attempt
-    @attempt_id INT
-AS
-BEGIN
-    DELETE FROM attempts WHERE attempt_id = @attempt_id;
-END;
-GO
-
-CREATE PROCEDURE sp_update_attempt_score
-    @attempt_id INT,
-    @new_score INT
-AS
-BEGIN
-    UPDATE attempts SET score = @new_score
-    WHERE attempt_id = @attempt_id;
-END;
+JOIN vw_attempt_answers_detailed v ON a.attempt_id = v.attempt_id
+GROUP BY a.attempt_id,a.exam_id,a.examinee_id,a.attempted_at;
 GO

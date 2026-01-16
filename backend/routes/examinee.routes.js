@@ -5,7 +5,9 @@ const { authenticate, allowRoles } = require('../middleware/auth');
 
 router.use(authenticate, allowRoles('examinee'));
 
-/* AVAILABLE EXAMS */
+/* =========================================================
+   AVAILABLE EXAMS
+   ========================================================= */
 router.get('/exams', async (req, res) => {
     const pool = await getPool();
     const result = await pool.request()
@@ -21,7 +23,9 @@ router.get('/exams', async (req, res) => {
     res.json(result.recordset);
 });
 
-/* ATTEMPT HISTORY */
+/* =========================================================
+   ATTEMPT HISTORY
+   ========================================================= */
 router.get('/attempts', async (req, res) => {
     const pool = await getPool();
     const result = await pool.request()
@@ -36,7 +40,9 @@ router.get('/attempts', async (req, res) => {
     res.json(result.recordset);
 });
 
-/* REQUEST DELETE */
+/* =========================================================
+   REQUEST DELETE
+   ========================================================= */
 router.post('/request-delete', async (req, res) => {
     const { attemptId, reason } = req.body;
 

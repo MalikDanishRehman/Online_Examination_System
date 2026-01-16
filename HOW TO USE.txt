@@ -7,6 +7,6 @@ Make sure your relational database is setup, and the tables have been created.
 Adjust environment variables for backend accordingly.
 
 Make sure to 'npm i' in both 'root' and 'backend' folder.
-'npm run start' for both root and backend directories.
+'npm run dev' for both root and backend directories.
 
 Test

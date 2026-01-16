@@ -1,16 +1,13 @@
 import axios from "axios";
-import { showPopup } from "../utils/popup";
+import { showPopup } from "../popup/popup";
 import { getUser } from "../utils/auth";
-import {dbg} from '../utils/debugger';
+import { dbg } from '../utils/debugger';
 
 const api = axios.create({
   baseURL: "http://localhost:5000/api",
   timeout: 10000,
 });
 
-/* ===============================
-   REQUEST INTERCEPTOR
-   =============================== */
 api.interceptors.request.use(
   (config) => {
     dbg.log("API request:", config.method?.toUpperCase(), config.url);
@@ -29,9 +26,6 @@ api.interceptors.request.use(
   }
 );
 
-/* ===============================
-   RESPONSE INTERCEPTOR
-   =============================== */
 api.interceptors.response.use(
   (res) => {
     dbg.log("API response success:", res.config.url, res.status);
@@ -44,7 +38,6 @@ api.interceptors.response.use(
     let message = "Unknown error occurred.";
 
     if (!err.response) {
-      // Backend down / DB not connected
       title = "Backend Unreachable";
       message =
         "Cannot connect to server.\n" +
