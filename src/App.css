@@ -1,0 +1,507 @@
+/* src/App.css */
+
+/* --- 1. GLOBAL SETTINGS --- */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Poppins', sans-serif;
+}
+
+body {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); /* Purple-Blue Gradient */
+  min-height: 100vh;
+  color: #333;
+}
+
+/* --- 2. LOGIN PAGE DESIGN --- */
+.login-wrapper {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px); /* Glass Effect */
+}
+
+.login-box {
+  background: white;
+  padding: 40px;
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+
+.login-box:hover {
+  transform: translateY(-5px); /* Thoda upar uthega */
+}
+
+.login-box h2 {
+  color: #4a4a4a;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.login-box p {
+  color: #888;
+  margin-bottom: 30px;
+  font-size: 14px;
+}
+
+/* --- 3. INPUT FIELDS --- */
+.input-field, input, select, textarea {
+  width: 100%;
+  padding: 12px 15px;
+  margin: 10px 0;
+  border: 2px solid #eee;
+  border-radius: 10px;
+  font-size: 15px;
+  transition: all 0.3s ease;
+  outline: none;
+}
+
+.input-field:focus, input:focus, textarea:focus {
+  border-color: #764ba2; /* Focus color */
+  box-shadow: 0 0 8px rgba(118, 75, 162, 0.2);
+}
+
+/* --- 4. BUTTONS --- */
+.btn-primary, button {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(to right, #667eea, #764ba2);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  margin-top: 10px;
+}
+
+.btn-primary:hover, button:hover {
+  transform: scale(1.02);
+  box-shadow: 0 5px 15px rgba(118, 75, 162, 0.4);
+}
+
+.btn-primary:active, button:active {
+  transform: scale(0.98);
+}
+
+/* --- 5. DASHBOARD LAYOUT --- */
+.dashboard-container {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 20px;
+}
+
+h1 {
+  color: white;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* --- 6. CARDS (Forms & Results) --- */
+.card {
+  background: white;
+  padding: 25px;
+  border-radius: 15px;
+  box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+/* --- 7. TABLES (Result List) --- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  background: white;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+thead {
+  background: #667eea;
+  color: white;
+}
+
+th, td {
+  padding: 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+tr:hover {
+  background-color: #f9f9f9;
+}
+
+/* --- 8. ANIMATIONS --- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- 9. EXAM OPTIONS --- */
+input[type="radio"] {
+  width: auto;
+  margin-right: 10px;
+  transform: scale(1.2);
+  cursor: pointer;
+}
+
+label {
+  cursor: pointer;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+label:hover {
+  background: #f0f2f5;
+}
+
+
+/* src/App.css - PROFESSIONAL DASHBOARD THEME */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+
+:root {
+  --primary: #2563eb; /* Professional Blue */
+  --secondary: #64748b;
+  --bg-main: #f1f5f9;
+  --sidebar-bg: #2a1e3b; /* Dark Navy Sidebar */
+  --card-bg: #ffffff;
+  --text-dark: #0f172a;
+  --success: #10b981;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+body { background-color: var(--bg-main); color: var(--text-dark); }
+
+/* --- LOGIN PAGE --- */
+.login-wrapper { 
+  height: 100vh;
+   display: flex; 
+   align-items: center;
+    justify-content: center; 
+    background-image: url("back.jpg");
+    
+.login-box { background: rgb(230, 212, 245);
+   padding: 40px;
+    width: 400px;
+     border-radius: 8px;
+     box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    border-radius: 15px; }
+.login-box h2 { margin-bottom: 20px; color: var(--sidebar-bg); }
+}
+/* --- DASHBOARD LAYOUT (Sidebar + Main) --- */
+.dashboard-layout { display: flex; min-height: 100vh; }
+
+/* SIDEBAR */
+.sidebar {
+  width: 250px;
+  background: rgb(48, 4, 83);
+  color: white;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar h2 { font-size: 20px; margin-bottom: 40px; border-bottom: 1px solid #334155; padding-bottom: 10px; }
+.menu-item {
+  padding: 12px;
+  cursor: pointer;
+  border-radius: 6px;
+  margin-bottom: 5px;
+  transition: 0.2s;
+  color: #cbd5e1;
+}
+.menu-item:hover, .menu-item.active { background: var(--primary); color: white; }
+.logout-btn { margin-top: auto; background: #ef4444; border: none; color: white; padding: 10px; border-radius: 6px; cursor: pointer; }
+
+/* MAIN CONTENT */
+.main-content { flex: 1; padding: 30px; overflow-y: auto; }
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+
+/* CARDS & TABLES */
+.card { background: var(--card-bg); padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+.btn-primary { background: linear-gradient(to right, #667eea, #764ba2); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+.btn-outline { background: transparent; border: 1px solid var(--primary); color: var(--primary); padding: 10px 20px; border-radius: 6px; cursor: pointer; }
+
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th { background: #f8fafc; color: var(--secondary); text-align: left; padding: 12px; font-weight: 600; border-bottom: 1px solid #e2e8f0; }
+td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+input, select, textarea { width: 100%; padding: 10px; margin: 8px 0; border: 1px solid #cbd5e1; border-radius: 6px; }
+
+/* AI GENERATOR BOX */
+.ai-box { border: 2px dashed var(--primary); background: #eff6ff; padding: 30px; text-align: center; border-radius: 10px; cursor: pointer; transition: 0.2s; }
+.ai-box:hover { background: #dbeafe; }
+
+
+
+
+
+
+/* --- Teacher Dashboard Styles --- */
+.dashboard-container { display: flex; 
+  height: 100vh; 
+  background: #dee4f0; 
+  font-family: 'Segoe UI', sans-serif;
+border-radius: 15px;
+}
+
+/* Sidebar */
+.sidebar { width: 260px; background: rgb(28, 4, 48);; color: white; display: flex; flex-direction: column; padding: 20px; }
+.logo-section h2 { color: #60a5fa; margin-bottom: 5px; }
+.welcome-text { color: #94a3b8; font-size: 0.9rem; margin-bottom: 40px; }
+.nav-links button { 
+    background: none; border: none; color: #cbd5e1; width: 100%; text-align: left; 
+    padding: 15px; margin-bottom: 10px; cursor: pointer; font-size: 1rem; border-radius: 8px; transition: 0.3s;
+}
+.nav-links button:hover, .nav-links button.active { background: #334155; color: white; padding-left: 20px; }
+.logout-btn { margin-top: auto; background: #ef4444; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; }
+
+/* Main Content */
+.main-content { flex: 1; overflow-y: auto; padding: 0; }
+
+.top-bar { background: rgb(8, 1, 40); 
+  padding: 20px 40px; 
+  display: flex;
+   justify-content: space-between;
+    align-items: center;
+   box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+   }
+.content-area { padding: 40px; }
+
+/* Buttons */
+.create-btn { background: #2563eb; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-weight: bold; }
+.action-buttons { position: relative; }
+.dropdown-menu { 
+    position: absolute; top: 50px; right: 0; background: white; width: 220px; 
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15); border-radius: 8px; overflow: hidden; z-index: 100;
+}
+.dropdown-item { padding: 15px; cursor: pointer; border-bottom: 1px solid #eee; transition: 0.2s; }
+.dropdown-item:hover { background: #f8fafc; }
+.dropdown-item small { display: block; color: #64748b; font-size: 0.8rem; margin-top: 2px; }
+
+/* Cards & Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+.card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); border: 1px solid #e2e8f0; }
+.stat-number { font-size: 2.5rem; font-weight: bold; color: #1e293b; margin: 10px 0 0 0; }
+
+/* Table */
+.modern-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+.modern-table th { text-align: left; padding: 15px; color: #64748b; font-size: 0.9rem; border-bottom: 2px solid #f1f5f9; }
+.modern-table td { padding: 15px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+.status-badge { padding: 5px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: bold; }
+.status-badge.published { background: #dcfce7; color: #166534; }
+.status-badge.draft { background: #f1f5f9; color: #475569; }
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================================
+   STUDENT EXAM STYLING (Modern UI)
+   ========================================= */
+
+/* Layout & Background */
+.exam-container {
+    background-color: #c7b8fa;
+    min-height: 100vh;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* Header Styling */
+.exam-header {
+    background: #0c0223;
+    padding: 15px 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    color: white;
+}
+
+.logo h2 { margin: 0; 
+  color: #f5f6f7;
+   font-size: 1.5rem; }
+.student-badge { 
+    background: #e0f2fe; color: #0284c7; 
+    font-size: 0.8rem; padding: 4px 8px; 
+    border-radius: 6px; vertical-align: middle; 
+}
+.user-info { display: flex;
+   gap: 20px;
+    align-items: center; 
+    font-weight: 600;
+     color: white; }
+.logout-btn-sm {
+    background: #ffe4e6; color: #e11d48; border: none;
+    padding: 8px 16px; border-radius: 6px; cursor: pointer;
+    font-weight: bold; transition: 0.2s;
+}
+.logout-btn-sm:hover { background: #fca5a5; color: white; }
+
+/* Content Area */
+.exam-content { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+
+/* Question Card */
+.question-card {
+    background: white;
+    padding: 30px;
+    border-radius: 16px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    border: 1px solid #e2e8f0;
+    margin-bottom: 30px;
+    transition: transform 0.2s;
+}
+.question-header { display: flex; gap: 15px; margin-bottom: 20px; }
+.q-number { 
+    background: #3b82f6; color: white; 
+    width: 40px; height: 40px; 
+    display: flex; justify-content: center; align-items: center;
+    border-radius: 50%; font-weight: bold; flex-shrink: 0;
+}
+.q-text { margin: 0; color: #334155; font-size: 1.1rem; line-height: 1.5; }
+
+/* Options (Clickable Boxes) */
+.options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+.option-box {
+    display: flex; align-items: center; gap: 12px;
+    padding: 15px;
+    border: 2px solid #f1f5f9;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.option-box:hover { background: #f8fafc; border-color: #cbd5e1; }
+
+/* Selected State */
+.option-box.selected {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.opt-letter {
+    background: #e2e8f0; color: #64748b;
+    width: 28px; height: 28px;
+    display: flex; justify-content: center; align-items: center;
+    border-radius: 6px; font-weight: bold; font-size: 0.8rem;
+}
+.option-box.selected .opt-letter { background: #3b82f6; color: white; }
+
+.hidden-radio { display: none; } /* Radio button ko chupana */
+
+/* Submit Button */
+.submit-exam-btn {
+    width: 100%; padding: 18px;
+    background: linear-gradient(135deg, #091839 0%, #081331 100%);
+    color: white; border: none; border-radius: 12px;
+    font-size: 1.1rem; font-weight: bold; cursor: pointer;
+    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+    transition: 0.3s;
+    margin-bottom: 20rem;
+}
+.submit-exam-btn:hover { transform: translateY(-2px); box-shadow: 0 15px 30px rgba(37, 99, 235, 0.3); }
+
+/* Result Card */
+.result-card {
+    background: white; padding: 50px; text-align: center;
+    border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    max-width: 500px; margin: 0 auto;
+}
+.result-icon { font-size: 4rem; margin-bottom: 20px; animation: bounce 2s infinite; }
+.score-box { 
+    margin: 20px 0; font-size: 3rem; font-weight: 800; color: #1e293b; 
+}
+.score-total { font-size: 1.5rem; color: #94a3b8; font-weight: normal; }
+
+.percentage-bar {
+    height: 10px; background: #f1f5f9; border-radius: 10px;
+    overflow: hidden; margin: 20px auto; width: 80%;
+}
+.percentage-bar .fill {
+    height: 100%; background: #10b981; border-radius: 10px;
+    transition: width 1s ease-out;
+}
+.retry-btn {
+    margin-top: 30px; padding: 12px 30px;
+    background: #1e293b; color: white; border: none;
+    border-radius: 8px; cursor: pointer; font-size: 1rem;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .options-grid { grid-template-columns: 1fr; } /* Mobile pe options ek ke neeche ek */
+    .exam-header { padding: 15px 20px; }
+}
+
+/* Animations */
+.fade-in { animation: fadeIn 0.5s ease-in; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* =========================================
+   ADMIN DASHBOARD STYLING
+   ========================================= */
+/* --- Admin Form Styling --- */
+.admin-form label {
+    display: block;
+    margin-bottom: 8px;
+    color: #334155;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.modern-input {
+    width: 100%;
+    padding: 12px 15px;
+    margin-bottom: 20px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: 0.2s;
+    box-sizing: border-box; /* Important alignment ke liye */
+    background: #f8fafc;
+}
+
+.modern-input:focus {
+    border-color: #2563eb;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    background: white;
+}

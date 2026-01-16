@@ -11,11 +11,7 @@
 # production
 /build
 
-src_bak
-
 # misc
-_promptEng
-_xed
 .DS_Store
 .env
 .env.local

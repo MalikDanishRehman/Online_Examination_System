@@ -11,9 +11,6 @@
 # production
 /build
 
-# xed
-_xed
-
 # misc
 .DS_Store
 .env
